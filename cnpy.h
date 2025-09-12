@@ -93,6 +93,7 @@ namespace cnpy {
     void parse_zip_footer(FILE* fp, uint16_t& nrecs, size_t& global_header_size, size_t& global_header_offset);
     npz_t npz_load(std::string fname);
     NpyArray npz_load(std::string fname, std::string varname);
+    // load a .npy file. if use_mmap is true, memory-map the file instead of reading it into memory (allows read-write)
     NpyArray npy_load(std::string fname, bool use_mmap = false);
 
     template <typename T>

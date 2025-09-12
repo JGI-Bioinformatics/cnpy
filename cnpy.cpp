@@ -337,8 +337,8 @@ cnpy::NpyArray cnpy::npy_load(std::string fname, bool use_mmap) {
         return arr;
     } else {
 #ifdef __unix__
-        // Open and memory-map the file (read-only)
-        std::shared_ptr<MMapFile> mmap_file = std::make_shared<MMapFile>(fname, "r");
+        // Open and memory-map the file (read-write mode)
+        std::shared_ptr<MMapFile> mmap_file = std::make_shared<MMapFile>(fname, "rw");
         // Obtain raw pointer to the mapped region
         unsigned char* buffer = reinterpret_cast<unsigned char*>(const_cast<char*>(mmap_file->data()));
         // Parse the header from the mapped memory
@@ -348,7 +348,7 @@ cnpy::NpyArray cnpy::npy_load(std::string fname, bool use_mmap) {
         cnpy::parse_npy_header(buffer, word_size, shape, fortran_order);
         // Header length is stored at offset 8 (little-endian uint16)
         uint16_t header_len = *reinterpret_cast<uint16_t*>(buffer + 8);
-        size_t data_offset = 9 + header_len; // 9 bytes before header data
+        size_t data_offset = 10 + header_len; // 10 bytes before header data
         // Construct an NpyArray that references the mmap region
         cnpy::NpyArray arr(shape, word_size, fortran_order, mmap_file, data_offset);
         return arr;
