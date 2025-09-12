@@ -64,9 +64,9 @@ template <> std::vector<char>& cnpy::operator+=(std::vector<char>& lhs, const ch
 }
 
 void cnpy::parse_npy_header(unsigned char* buffer, size_t& word_size, std::vector<size_t>& shape, bool& fortran_order) {
-    // std::string magic_string(buffer,6);
-    //  uint8_t major_version = *reinterpret_cast<uint8_t*>(buffer+6);
-    //  uint8_t minor_version = *reinterpret_cast<uint8_t*>(buffer+7);
+    std::string magic_string((const char *)buffer, 6);
+    uint8_t major_version = *reinterpret_cast<uint8_t*>(buffer + 6);
+    uint8_t minor_version = *reinterpret_cast<uint8_t*>(buffer + 7);
     uint16_t header_len = *reinterpret_cast<uint16_t*>(buffer + 8);
     std::string header(reinterpret_cast<char*>(buffer + 9), header_len);
 
@@ -194,7 +194,7 @@ cnpy::NpyArray load_the_npz_array(FILE* fp, uint32_t compr_bytes, uint32_t uncom
     size_t nread = fread(&buffer_compr[0], 1, compr_bytes, fp);
     if (nread != compr_bytes) throw std::runtime_error("load_the_npy_file: failed fread");
 
-    // Removed unused variable 'err' and ignored return values
+    int err;
     z_stream d_stream;
 
     d_stream.zalloc = Z_NULL;
@@ -202,15 +202,18 @@ cnpy::NpyArray load_the_npz_array(FILE* fp, uint32_t compr_bytes, uint32_t uncom
     d_stream.opaque = Z_NULL;
     d_stream.avail_in = 0;
     d_stream.next_in = Z_NULL;
-    (void)inflateInit2(&d_stream, -MAX_WBITS);
+    err = inflateInit2(&d_stream, -MAX_WBITS);
+    if (err != Z_OK) throw std::runtime_error("load_the_npz_array: inflateInit2 failed");
 
     d_stream.avail_in = compr_bytes;
     d_stream.next_in = &buffer_compr[0];
     d_stream.avail_out = uncompr_bytes;
     d_stream.next_out = &buffer_uncompr[0];
 
-    (void)inflate(&d_stream, Z_FINISH);
-    (void)inflateEnd(&d_stream);
+    err = inflate(&d_stream, Z_FINISH);
+    if (err != Z_STREAM_END) throw std::runtime_error("load_the_npz_array: inflate failed");
+    err = inflateEnd(&d_stream);
+    if (err != Z_OK) throw std::runtime_error("load_the_npz_array: inflateEnd failed");
 
     std::vector<size_t> shape;
     size_t word_size;
