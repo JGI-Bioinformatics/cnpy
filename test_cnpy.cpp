@@ -550,3 +550,203 @@ TEST_CASE("npz_load with three arrays loads correctly", "[cnpy]") {
   }
   std::remove(filename.c_str());
 }
+// Unit test for npy_save (int vector)
+TEST_CASE("npy_save correctly writes a .npy file for int type and loads correctly", "[cnpy]") {
+    std::vector<int> data = {1, 2, 3, 4, 5};
+    std::string filename = "test_npy_save_int.npy";
+
+    // Save using npy_save
+    cnpy::npy_save<int>(filename, data);
+
+    // Load using npy_load
+    cnpy::NpyArray arr = cnpy::npy_load(filename);
+
+    // Verify shape and metadata
+    REQUIRE(arr.shape.size() == 1);
+    REQUIRE(arr.shape[0] == data.size());
+    REQUIRE(arr.word_size == sizeof(int));
+    REQUIRE(arr.fortran_order == false);
+    REQUIRE(arr.num_vals == data.size());
+    REQUIRE(arr.num_bytes() == data.size() * sizeof(int));
+
+    // Verify data
+    const int* loaded = arr.data<int>();
+    for (size_t i = 0; i < data.size(); ++i) {
+        REQUIRE(loaded[i] == data[i]);
+    }
+
+    // Clean up
+    std::remove(filename.c_str());
+}
+
+// Unit test for npy_save with multi-dimensional data
+TEST_CASE("npy_save correctly writes a multi-dimensional .npy file and loads correctly", "[cnpy]") {
+    std::vector<int> data = {0, 1, 2, 3, 4, 5};
+    std::vector<size_t> shape = {2, 3};
+    std::string filename = "test_npy_save_multi.npy";
+
+    // Save using pointer overload
+    cnpy::npy_save<int>(filename, data.data(), shape);
+
+    // Load using npy_load
+    cnpy::NpyArray arr = cnpy::npy_load(filename);
+
+    // Verify shape and metadata
+    REQUIRE(arr.shape == shape);
+    REQUIRE(arr.word_size == sizeof(int));
+    REQUIRE(arr.fortran_order == false);
+    REQUIRE(arr.num_vals == data.size());
+    REQUIRE(arr.num_bytes() == data.size() * sizeof(int));
+
+    // Verify data
+    const int* loaded = arr.data<int>();
+    for (size_t i = 0; i < data.size(); ++i) {
+        REQUIRE(loaded[i] == data[i]);
+    }
+
+    // Clean up
+    std::remove(filename.c_str());
+}
+// Unit test for npy_load with multi-dimensional data
+TEST_CASE("npy_load correctly loads a multi-dimensional .npy file for int type", "[cnpy]") {
+    // Prepare data for a 2x3x4 array (24 elements)
+    std::vector<int> data(2 * 3 * 4);
+    for (size_t i = 0; i < data.size(); ++i) {
+        data[i] = static_cast<int>(i);
+    }
+    std::vector<size_t> shape = {2, 3, 4};
+    std::string filename = "test_npy_load_multi.npy";
+
+    // Save using the pointer overload of npy_save
+    cnpy::npy_save<int>(filename, data.data(), shape);
+
+    // Load the file using npy_load
+    cnpy::NpyArray arr = cnpy::npy_load(filename);
+
+    // Verify shape and metadata
+    REQUIRE(arr.shape == shape);
+    REQUIRE(arr.word_size == sizeof(int));
+    REQUIRE(arr.fortran_order == false);
+    REQUIRE(arr.num_vals == data.size());
+    REQUIRE(arr.num_bytes() == data.size() * sizeof(int));
+
+    // Verify the loaded data matches the original
+    const int* loaded = arr.data<int>();
+    for (size_t i = 0; i < data.size(); ++i) {
+        REQUIRE(loaded[i] == data[i]);
+    }
+
+    // Clean up the generated file
+    std::remove(filename.c_str());
+}
+// Unit test for npz_save with multiple arrays (including a multi-dimensional array)
+TEST_CASE("npz_save writes multiple arrays (including multi-dimensional) and npz_load retrieves them correctly", "[cnpy]") {
+    // Prepare data for a 1‑D integer array
+    std::vector<int> int_data = {1, 2, 3, 4, 5};
+    // Prepare data for a 2×3 double array (6 elements)
+    std::vector<double> double_data = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6};
+    std::vector<size_t> double_shape = {2, 3};
+    std::string filename = "test_npz_save_multi.npz";
+
+    // Save the integer array using the vector overload (creates a 1‑D .npy inside the .npz)
+    cnpy::npz_save<int>(filename, "int_arr", int_data, "w");
+
+    // Append the multi‑dimensional double array using the pointer overload
+    cnpy::npz_save<double>(filename, "double_arr", double_data.data(), double_shape, "a");
+
+    // Load all arrays from the .npz file
+    cnpy::npz_t arrays = cnpy::npz_load(filename);
+    REQUIRE(arrays.size() == 2);
+    REQUIRE(arrays.count("int_arr") == 1);
+    REQUIRE(arrays.count("double_arr") == 1);
+
+    // Verify the integer array
+    const cnpy::NpyArray &int_arr = arrays.at("int_arr");
+    REQUIRE(int_arr.shape == std::vector<size_t>{int_data.size()});
+    REQUIRE(int_arr.word_size == sizeof(int));
+    REQUIRE(int_arr.fortran_order == false);
+    const int *loaded_int = int_arr.data<int>();
+    for (size_t i = 0; i < int_data.size(); ++i) {
+        REQUIRE(loaded_int[i] == int_data[i]);
+    }
+
+    // Verify the double array (multi‑dimensional)
+    const cnpy::NpyArray &double_arr = arrays.at("double_arr");
+    REQUIRE(double_arr.shape == double_shape);
+    REQUIRE(double_arr.word_size == sizeof(double));
+    REQUIRE(double_arr.fortran_order == false);
+    const double *loaded_double = double_arr.data<double>();
+    for (size_t i = 0; i < double_data.size(); ++i) {
+        REQUIRE(loaded_double[i] == Catch::Approx(double_data[i]));
+    }
+
+    // Verify loading a single array via the varname overload
+    cnpy::NpyArray int_arr_single = cnpy::npz_load(filename, "int_arr");
+    REQUIRE(int_arr_single.shape == std::vector<size_t>{int_data.size()});
+    const int *loaded_int_single = int_arr_single.data<int>();
+    for (size_t i = 0; i < int_data.size(); ++i) {
+        REQUIRE(loaded_int_single[i] == int_data[i]);
+    }
+
+    // Clean up the temporary .npz file
+    std::remove(filename.c_str());
+}
+// Unit test for npy_save append using pointer overload (multi-dimensional)
+TEST_CASE("npy_save append works with pointer overload for multi-dimensional data", "[cnpy]") {
+    // Initial 2x2 array
+    std::vector<int> data1 = {0, 1, 2, 3};
+    std::vector<size_t> shape1 = {2, 2};
+    std::string filename = "test_npy_save_append_ptr.npy";
+
+    // Save initial data (write mode)
+    cnpy::npy_save<int>(filename, data1.data(), shape1, "w");
+
+    // Append additional 1x2 data
+    std::vector<int> data2 = {4, 5};
+    std::vector<size_t> shape2 = {1, 2};
+    cnpy::npy_save<int>(filename, data2.data(), shape2, "a");
+
+    // Load and verify combined shape and data
+    cnpy::NpyArray arr = cnpy::npy_load(filename);
+    std::vector<size_t> expected_shape = {3, 2};
+    REQUIRE(arr.shape == expected_shape);
+    REQUIRE(arr.word_size == sizeof(int));
+    REQUIRE(arr.fortran_order == false);
+    const int* loaded = arr.data<int>();
+    std::vector<int> expected = {0, 1, 2, 3, 4, 5};
+    for (size_t i = 0; i < expected.size(); ++i) {
+        REQUIRE(loaded[i] == expected[i]);
+    }
+
+    // Clean up
+    std::remove(filename.c_str());
+}
+
+// Unit test for npy_save append using vector overload (1‑D)
+TEST_CASE("npy_save append works with vector overload for 1‑D data", "[cnpy]") {
+    // Initial data
+    std::vector<int> data1 = {1, 2, 3};
+    std::string filename = "test_npy_save_append_vec.npy";
+
+    // Save initial data (write mode)
+    cnpy::npy_save<int>(filename, data1, "w");
+
+    // Append additional data
+    std::vector<int> data2 = {4, 5, 6, 7};
+    cnpy::npy_save<int>(filename, data2, "a");
+
+    // Load and verify combined shape and data
+    cnpy::NpyArray arr = cnpy::npy_load(filename);
+    std::vector<size_t> expected_shape = {7};
+    REQUIRE(arr.shape == expected_shape);
+    REQUIRE(arr.word_size == sizeof(int));
+    REQUIRE(arr.fortran_order == false);
+    const int* loaded = arr.data<int>();
+    std::vector<int> expected = {1, 2, 3, 4, 5, 6, 7};
+    for (size_t i = 0; i < expected.size(); ++i) {
+        REQUIRE(loaded[i] == expected[i]);
+    }
+
+    // Clean up
+    std::remove(filename.c_str());
+}
