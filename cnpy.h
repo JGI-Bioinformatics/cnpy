@@ -69,6 +69,7 @@ namespace cnpy {
             if (mmap_file) {
                 return num_vals * word_size;
             }
+            assert(data_holder->size() == num_vals * word_size);
             return data_holder->size();
         }
 
@@ -113,8 +114,7 @@ namespace cnpy {
         if (mode == "a") fp = fopen(fname.c_str(), "r+b");
 
         if (fp) {
-            // file exists. we need to append to it. read the header, modify the array
-            // size
+            // file exists. we need to append to it. read the header, modify the array size
             size_t word_size;
             bool fortran_order;
             parse_npy_header(fp, word_size, true_data_shape, fortran_order);
@@ -126,9 +126,7 @@ namespace cnpy {
                 assert(word_size == sizeof(T));
             }
             if (true_data_shape.size() != shape.size()) {
-                std::cout << "libnpy error: npy_save attempting to append misdimensioned "
-                             "data to "
-                          << fname << "\n";
+                std::cout << "libnpy error: npy_save attempting to append misdimensioned data to " << fname << "\n";
                 assert(true_data_shape.size() != shape.size());
             }
 
@@ -170,10 +168,10 @@ namespace cnpy {
 
         if (fp) {
             // zip file exists. we need to add a new npy file to it.
-            // first read the footer. this gives us the offset and size of the global
-            // header then read and store the global header. below, we will write the
-            // the new data at the start of the global header then append the global
-            // header and footer below it
+            // first read the footer. this gives us the offset and size of the global header
+            // then read and store the global header.
+            // below, we will write the the new data at the start of the global header then append the global header and
+            // footer below it
             size_t global_header_size;
             parse_zip_footer(fp, nrecs, global_header_size, global_header_offset);
             fseek(fp, global_header_offset, SEEK_SET);
@@ -221,8 +219,8 @@ namespace cnpy {
         global_header += (uint16_t)0;                    // disk number where file starts
         global_header += (uint16_t)0;                    // internal file attributes
         global_header += (uint32_t)0;                    // external file attributes
-        global_header += (uint32_t)global_header_offset; // relative offset of local file header, since it
-                                                         // begins where the global header used to begin
+        global_header += (uint32_t)global_header_offset; // relative offset of local file header, since it begins where
+                                                         // the global header used to begin
         global_header += fname;
 
         // build footer
@@ -276,8 +274,7 @@ namespace cnpy {
         }
         if (shape.size() == 1) dict += ",";
         dict += "), }";
-        // pad with spaces so that preamble+dict is modulo 16 bytes. preamble is 10
-        // bytes. dict needs to end with \n
+        // pad with spaces so that preamble+dict is modulo 16 bytes. preamble is 10 bytes. dict needs to end with \n
         int remainder = 16 - (10 + dict.size()) % 16;
         dict.insert(dict.end(), remainder, ' ');
         dict.back() = '\n';
