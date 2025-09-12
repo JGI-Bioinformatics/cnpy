@@ -45,3 +45,7 @@ add_executable(test_cnpy test_cnpy.cpp)
 target_link_libraries(test_cnpy PRIVATE cnpy Catch2::Catch2WithMain)
 
 add_test(NAME cnpy_test COMMAND test_cnpy)
+
+add_executable(test_mmap_util test_mmap_util.cpp)
+target_link_libraries(test_mmap_util PRIVATE cnpy Catch2::Catch2WithMain)
+add_test(NAME mmap_util_test COMMAND test_mmap_util)
