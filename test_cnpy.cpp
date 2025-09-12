@@ -736,3 +736,145 @@ TEST_CASE("npy_save append works with vector overload for 1‑D data", "[cnpy]")
     // Clean up
     std::remove(filename.c_str());
 }
+
+// Unit test for mmap-backed NpyArray constructor
+TEST_CASE("NpyArray mmap constructor", "[cnpy]") {
+    std::vector<size_t> shape = {2, 3};
+    bool fortran = false;
+    std::string filename = "test_npy_mmap.npy";
+
+    // Create a new mmap-backed NpyArray using the library helper
+    cnpy::NpyArray arr = cnpy::new_mmap<int>(filename, shape, fortran);
+
+    // Verify shape and properties
+    REQUIRE(arr.shape == shape);
+    REQUIRE(arr.word_size == sizeof(int));
+    REQUIRE(arr.fortran_order == fortran);
+
+    // Compute expected number of elements
+    size_t expected_num_vals = 1;
+    for (size_t dim : shape) {
+        expected_num_vals *= dim;
+    }
+    REQUIRE(arr.num_vals == expected_num_vals);
+
+    // Test mutable data access
+    int* data = arr.data<int>();
+    for (size_t i = 0; i < expected_num_vals; ++i) {
+        data[i] = static_cast<int>(i * 7);
+    }
+
+    // Verify values via const accessor
+    const cnpy::NpyArray& const_arr = arr;
+    const int* const_data = const_arr.data<int>();
+    for (size_t i = 0; i < expected_num_vals; ++i) {
+        REQUIRE(const_data[i] == static_cast<int>(i * 7));
+    }
+
+    // Clean up the temporary file
+    std::remove(filename.c_str());
+}
+TEST_CASE("new_mmap unsigned short 1D", "[cnpy]") {
+    std::vector<size_t> shape = {10};
+    std::string filename = "test_npy_mmap_ushort.npy";
+
+    cnpy::NpyArray arr = cnpy::new_mmap<unsigned short>(filename, shape, false);
+
+    // Verify shape and properties
+    REQUIRE(arr.shape == shape);
+    REQUIRE(arr.word_size == sizeof(unsigned short));
+    REQUIRE(arr.fortran_order == false);
+
+    // Compute expected number of elements
+    size_t expected_num_vals = 1;
+    for (size_t dim : shape) {
+        expected_num_vals *= dim;
+    }
+    REQUIRE(arr.num_vals == expected_num_vals);
+
+    // Test mutable data access
+    unsigned short* data = arr.data<unsigned short>();
+    for (size_t i = 0; i < expected_num_vals; ++i) {
+        data[i] = static_cast<unsigned short>(i * 3);
+    }
+
+    // Verify values via const accessor
+    const cnpy::NpyArray& const_arr = arr;
+    const unsigned short* const_data = const_arr.data<unsigned short>();
+    for (size_t i = 0; i < expected_num_vals; ++i) {
+        REQUIRE(const_data[i] == static_cast<unsigned short>(i * 3));
+    }
+
+    // Clean up the temporary file
+    std::remove(filename.c_str());
+}
+
+TEST_CASE("new_mmap int 2D", "[cnpy]") {
+    std::vector<size_t> shape = {4, 5};
+    std::string filename = "test_npy_mmap_int_2d.npy";
+
+    cnpy::NpyArray arr = cnpy::new_mmap<int>(filename, shape, false);
+
+    // Verify shape and properties
+    REQUIRE(arr.shape == shape);
+    REQUIRE(arr.word_size == sizeof(int));
+    REQUIRE(arr.fortran_order == false);
+
+    // Compute expected number of elements
+    size_t expected_num_vals = 1;
+    for (size_t dim : shape) {
+        expected_num_vals *= dim;
+    }
+    REQUIRE(arr.num_vals == expected_num_vals);
+
+    // Test mutable data access
+    int* data = arr.data<int>();
+    for (size_t i = 0; i < expected_num_vals; ++i) {
+        data[i] = static_cast<int>(i * 5);
+    }
+
+    // Verify values via const accessor
+    const cnpy::NpyArray& const_arr = arr;
+    const int* const_data = const_arr.data<int>();
+    for (size_t i = 0; i < expected_num_vals; ++i) {
+        REQUIRE(const_data[i] == static_cast<int>(i * 5));
+    }
+
+    // Clean up the temporary file
+    std::remove(filename.c_str());
+}
+
+TEST_CASE("new_mmap double 3D", "[cnpy]") {
+    std::vector<size_t> shape = {2, 3, 4};
+    std::string filename = "test_npy_mmap_double_3d.npy";
+
+    cnpy::NpyArray arr = cnpy::new_mmap<double>(filename, shape, false);
+
+    // Verify shape and properties
+    REQUIRE(arr.shape == shape);
+    REQUIRE(arr.word_size == sizeof(double));
+    REQUIRE(arr.fortran_order == false);
+
+    // Compute expected number of elements
+    size_t expected_num_vals = 1;
+    for (size_t dim : shape) {
+        expected_num_vals *= dim;
+    }
+    REQUIRE(arr.num_vals == expected_num_vals);
+
+    // Test mutable data access
+    double* data = arr.data<double>();
+    for (size_t i = 0; i < expected_num_vals; ++i) {
+        data[i] = static_cast<double>(i) * 0.1;
+    }
+
+    // Verify values via const accessor
+    const cnpy::NpyArray& const_arr = arr;
+    const double* const_data = const_arr.data<double>();
+    for (size_t i = 0; i < expected_num_vals; ++i) {
+        REQUIRE(const_data[i] == static_cast<double>(i) * 0.1);
+    }
+
+    // Clean up the temporary file
+    std::remove(filename.c_str());
+}
