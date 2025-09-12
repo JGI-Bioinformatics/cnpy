@@ -42,6 +42,6 @@ target_link_libraries(example1 cnpy)
 enable_testing()
 
 add_executable(test_cnpy test_cnpy.cpp)
-target_link_libraries(test_cnpy PRIVATE Catch2::Catch2WithMain)
+target_link_libraries(test_cnpy PRIVATE cnpy Catch2::Catch2WithMain)
 
 add_test(NAME cnpy_test COMMAND test_cnpy)
