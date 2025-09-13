@@ -916,6 +916,7 @@ TEST_CASE("npy_save/load for char type", "[cnpy]") {
     std::remove(filename.c_str());
 }
 
+// Tests cnpy::npy_save/load for unsigned int and unsigned long long types
 TEST_CASE("npy_save/load for unsigned int and unsigned long long types", "[cnpy]") {
     {
         std::vector<unsigned int> data = {0u, 1u, std::numeric_limits<unsigned int>::max()};

@@ -100,7 +100,7 @@ namespace cnpy {
     NpyArray npy_load(std::string fname, bool use_mmap = false);
 
     template <typename T>
-    NpyArray new_mmap(std::string filename, const std::vector<size_t>& _shape, bool _fortran_order) {
+    static NpyArray new_mmap(std::string filename, const std::vector<size_t>& _shape, bool _fortran_order) {
         // create a new file and truncate it to the correct size
         size_t nvals = 1;
         for (size_t i = 0; i < _shape.size(); ++i) nvals *= _shape[i];
