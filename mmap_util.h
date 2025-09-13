@@ -38,6 +38,29 @@ public:
     }
     data_ = static_cast<char *>(map);
   }
+  // Open and map an already open file descriptor. mode = "r" for read-only, "rw" for
+  // read-write.
+  MMapFile(int fd, const std::string &mode = "r")
+      : fd_(-1), data_(nullptr), size_(0) {
+    if (fd < 0 || fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
+      throw std::invalid_argument("MMapFile: invalid file descriptor");
+    }
+    readonly_ = (mode == "r");
+    struct stat st;
+    if (fstat(fd, &st) == -1) {
+      ::close(fd);
+      throw std::runtime_error("MMapFile: cannot stat file descriptor " + std::to_string(fd));
+    }
+    size_ = static_cast<size_t>(st.st_size);
+    int prot = readonly_ ? PROT_READ : PROT_READ | PROT_WRITE;
+    void *map = ::mmap(nullptr, size_, prot, MAP_SHARED, fd, 0);
+    if (map == MAP_FAILED) {
+      ::close(fd);
+      throw std::runtime_error("MMapFile: mmap failed for file descriptor " + std::to_string(fd));
+    }
+    data_ = static_cast<char *>(map);
+    fd_ = fd;
+  }
 
   // Disable copy
   MMapFile(const MMapFile &) = delete;

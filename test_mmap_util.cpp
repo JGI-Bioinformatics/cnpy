@@ -6,6 +6,8 @@
  #include <cstring>
  #include <utility>
  #include <string>
+#include <fcntl.h>
+#include <unistd.h>
  
  TEST_CASE("MMapFile read-only mapping", "[mmap]") {
      const std::string filename = "test_mmap_file.bin";
@@ -72,3 +74,26 @@
      REQUIRE(fileContent == "12345FGHIJ");
      std::remove(filename.c_str());
  }
+ 
+TEST_CASE("MMapFile mapping from file descriptor", "[mmap]") {
+    const std::string filename = "test_mmap_fd.bin";
+    // Create a temporary file with known content
+    {
+        std::ofstream ofs(filename, std::ios::binary);
+        std::string data = "DataFDTest";
+        ofs.write(data.c_str(), data.size());
+    }
+    // Open file descriptor for read-only
+    int fd = ::open(filename.c_str(), O_RDONLY);
+    REQUIRE(fd >= 0);
+    cnpy::MMapFile mmapFd(fd, "r");
+    REQUIRE(mmapFd.is_open());
+    REQUIRE(mmapFd.is_readonly());
+    REQUIRE(mmapFd.size() == 10);
+    REQUIRE(std::memcmp(mmapFd.data(), "DataFDTest", 10) == 0);
+    // Invalid file descriptors should throw
+    REQUIRE_THROWS_AS(cnpy::MMapFile(-1, "r"), std::invalid_argument);
+    REQUIRE_THROWS_AS(cnpy::MMapFile(STDIN_FILENO, "r"), std::invalid_argument);
+    ::close(fd);
+    std::remove(filename.c_str());
+}
