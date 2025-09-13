@@ -4,9 +4,9 @@
 #include <catch2/catch_test_macros.hpp>
 #include <cstdio>
 #include <cstdlib>
+#include <sstream>
 #include <string>
 #include <vector>
-#include <sstream>
 
 TEST_CASE("NpyArray save, mmap load, modify, and reload", "[cnpy][mmap]") {
     const std::string filename = "test_mmap_save_load.npy";

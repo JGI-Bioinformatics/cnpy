@@ -2,7 +2,6 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <complex>
-#include <limits>
 
 TEST_CASE("Placeholder test", "[example]") { REQUIRE(true); }
 
@@ -882,7 +881,7 @@ TEST_CASE("new_mmap double 3D", "[cnpy]") {
 // Test for npz_save with compression option
 TEST_CASE("npz_save with compression option compresses data correctly", "[cnpy]") {
     std::vector<int> data = {10, 20, 30, 40, 50, 60};
-    std::vector<size_t> shape = {2,3};
+    std::vector<size_t> shape = {2, 3};
     std::string filename = "test_npz_compress.npz";
 
     // Save with compression enabled
@@ -891,7 +890,7 @@ TEST_CASE("npz_save with compression option compresses data correctly", "[cnpy]"
     // Load and verify
     cnpy::npz_t arrays = cnpy::npz_load(filename);
     REQUIRE(arrays.size() == 1);
-    const cnpy::NpyArray &arr = arrays.at("arr_compressed");
+    const cnpy::NpyArray& arr = arrays.at("arr_compressed");
     REQUIRE(arr.shape == shape);
     REQUIRE(arr.word_size == sizeof(int));
     const int* loaded = arr.data<int>();
@@ -901,4 +900,45 @@ TEST_CASE("npz_save with compression option compresses data correctly", "[cnpy]"
 
     // Clean up
     std::remove(filename.c_str());
+}
+// New test cases for additional npy/npz types
+
+TEST_CASE("npy_save/load for char type", "[cnpy]") {
+    std::vector<char> data = {'a', 'b', '\0', 'z'};
+    std::string filename = "test_npy_char.npy";
+    cnpy::npy_save<char>(filename, data);
+    cnpy::NpyArray arr = cnpy::npy_load(filename);
+    REQUIRE(arr.word_size == sizeof(char));
+    const char* loaded = arr.data<char>();
+    for (size_t i = 0; i < data.size(); ++i) {
+        REQUIRE(loaded[i] == data[i]);
+    }
+    std::remove(filename.c_str());
+}
+
+TEST_CASE("npy_save/load for unsigned int and unsigned long long types", "[cnpy]") {
+    {
+        std::vector<unsigned int> data = {0u, 1u, std::numeric_limits<unsigned int>::max()};
+        std::string filename = "test_npy_uint.npy";
+        cnpy::npy_save<unsigned int>(filename, data);
+        cnpy::NpyArray arr = cnpy::npy_load(filename);
+        REQUIRE(arr.word_size == sizeof(unsigned int));
+        const unsigned int* loaded = arr.data<unsigned int>();
+        for (size_t i = 0; i < data.size(); ++i) {
+            REQUIRE(loaded[i] == data[i]);
+        }
+        std::remove(filename.c_str());
+    }
+    {
+        std::vector<unsigned long long> data = {0ULL, 1ULL, std::numeric_limits<unsigned long long>::max()};
+        std::string filename = "test_npy_ull.npy";
+        cnpy::npy_save<unsigned long long>(filename, data);
+        cnpy::NpyArray arr = cnpy::npy_load(filename);
+        REQUIRE(arr.word_size == sizeof(unsigned long long));
+        const unsigned long long* loaded = arr.data<unsigned long long>();
+        for (size_t i = 0; i < data.size(); ++i) {
+            REQUIRE(loaded[i] == data[i]);
+        }
+        std::remove(filename.c_str());
+    }
 }

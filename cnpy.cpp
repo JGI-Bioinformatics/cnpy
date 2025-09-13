@@ -290,8 +290,8 @@ cnpy::npz_t cnpy::npz_load(std::string fname, bool use_mmap) {
             }
         } else {
             if (use_mmap) {
-                std::cerr << "Warning: npz_load: memory map requested but file '" << fname
-                          << "' entry '" << varname << "' is compressed; falling back to memory load" << std::endl;
+                std::cerr << "Warning: npz_load: memory map requested but file '" << fname << "' entry '" << varname
+                          << "' is compressed; falling back to memory load" << std::endl;
             }
             arrays[varname] = load_the_npz_array(fp, compr_bytes, uncompr_bytes);
         }
@@ -337,8 +337,8 @@ cnpy::NpyArray cnpy::npz_load(std::string fname, std::string varname, bool use_m
                 array = load_the_npy_file(fp);
             } else {
                 if (use_mmap) {
-                    std::cerr << "Warning: npz_load: memory map requested but file '" << fname
-                              << "' entry '" << varname << "' is compressed; falling back to memory load" << std::endl;
+                    std::cerr << "Warning: npz_load: memory map requested but file '" << fname << "' entry '" << varname
+                              << "' is compressed; falling back to memory load" << std::endl;
                 }
                 array = load_the_npz_array(fp, compr_bytes, uncompr_bytes);
             }

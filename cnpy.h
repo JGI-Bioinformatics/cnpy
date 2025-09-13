@@ -93,7 +93,7 @@ namespace cnpy {
     void parse_zip_footer(FILE* fp, uint16_t& nrecs, size_t& global_header_size, size_t& global_header_offset);
     npz_t npz_load(std::string fname, bool use_mmap = false);
     NpyArray npz_load(std::string fname, std::string varname, bool use_mmap = false);
-    NpyArray npz_load(std::string fname, const char * varname, bool use_mmap = false) {
+    NpyArray npz_load(std::string fname, const char* varname, bool use_mmap = false) {
         return npz_load(fname, std::string(varname), use_mmap);
     } // convenience overload
     // load a .npy file. if use_mmap is true, memory-map the file instead of reading it into memory (allows read-write)
@@ -223,6 +223,7 @@ namespace cnpy {
         std::vector<unsigned char> compr_buf;
         uint16_t compr_method = 0;
         uint32_t compr_bytes_val = nbytes;
+
         if (compress) {
             // build raw buffer of header + data for deflation
             compr_buf.reserve(nbytes);
@@ -232,14 +233,21 @@ namespace cnpy {
 
             // deflate (raw, no wrapper) for zip entry
             z_stream c_stream;
-            c_stream.zalloc = Z_NULL; c_stream.zfree = Z_NULL; c_stream.opaque = Z_NULL;
-            c_stream.next_in = compr_buf.data(); c_stream.avail_in = compr_buf.size();
+            c_stream.zalloc = Z_NULL;
+            c_stream.zfree = Z_NULL;
+            c_stream.opaque = Z_NULL;
+            c_stream.next_in = compr_buf.data();
+            c_stream.avail_in = compr_buf.size();
             int err = deflateInit2(&c_stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, -MAX_WBITS, 8, Z_DEFAULT_STRATEGY);
             if (err != Z_OK) throw std::runtime_error("npz_save: deflateInit2 failed");
             std::vector<unsigned char> tmp(deflateBound(&c_stream, compr_buf.size()));
-            c_stream.next_out = tmp.data(); c_stream.avail_out = tmp.size();
+            c_stream.next_out = tmp.data();
+            c_stream.avail_out = tmp.size();
             err = deflate(&c_stream, Z_FINISH);
-            if (err != Z_STREAM_END) { deflateEnd(&c_stream); throw std::runtime_error("npz_save: deflate failed"); }
+            if (err != Z_STREAM_END) {
+                deflateEnd(&c_stream);
+                throw std::runtime_error("npz_save: deflate failed");
+            }
             compr_bytes_val = c_stream.total_out;
             err = deflateEnd(&c_stream);
             if (err != Z_OK) throw std::runtime_error("npz_save: deflateEnd failed");
@@ -249,18 +257,18 @@ namespace cnpy {
 
         // build the local header
         std::vector<char> local_header;
-        local_header += "PK";                   // first part of sig
-        local_header += (uint16_t)0x0403;       // second part of sig
-        local_header += (uint16_t)20;           // min version to extract
-        local_header += (uint16_t)0;            // general purpose bit flag
-        local_header += compr_method;            // compression method
-        local_header += (uint16_t)0;            // file last mod time
-        local_header += (uint16_t)0;            // file last mod date
-        local_header += (uint32_t)crc;          // crc
-        local_header += (uint32_t)compr_bytes_val;       // compressed size
-        local_header += (uint32_t)nbytes;                // uncompressed size
-        local_header += (uint16_t)fname.size(); // fname length
-        local_header += (uint16_t)0;            // extra field length
+        local_header += "PK";                      // first part of sig
+        local_header += (uint16_t)0x0403;          // second part of sig
+        local_header += (uint16_t)20;              // min version to extract
+        local_header += (uint16_t)0;               // general purpose bit flag
+        local_header += compr_method;              // compression method
+        local_header += (uint16_t)0;               // file last mod time
+        local_header += (uint16_t)0;               // file last mod date
+        local_header += (uint32_t)crc;             // crc
+        local_header += (uint32_t)compr_bytes_val; // compressed size
+        local_header += (uint32_t)nbytes;          // uncompressed size
+        local_header += (uint16_t)fname.size();    // fname length
+        local_header += (uint16_t)0;               // extra field length
         local_header += fname;
 
         // build global header
@@ -310,7 +318,8 @@ namespace cnpy {
     }
 
     template <typename T>
-    void npz_save(std::string zipname, std::string fname, const std::vector<T> data, std::string mode = "w", bool compress = false) {
+    void npz_save(std::string zipname, std::string fname, const std::vector<T> data, std::string mode = "w",
+                  bool compress = false) {
         std::vector<size_t> shape;
         shape.push_back(data.size());
         npz_save(zipname, fname, &data[0], shape, mode, compress);
