@@ -2,6 +2,7 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <complex>
+#include <limits>
 
 TEST_CASE("Placeholder test", "[example]") { REQUIRE(true); }
 

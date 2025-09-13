@@ -227,10 +227,23 @@ cnpy::NpyArray load_the_npz_array(FILE* fp, uint32_t compr_bytes, uint32_t uncom
 
     return array;
 }
-// mmap-enabled overload for npz_save (pointer version) removed (duplicate)
+// Helper to memory-map a .npy array within a .npz file
+cnpy::NpyArray load_the_npy_mmap(FILE* fp) {
+    long data_pos = ftell(fp);
+    auto mmap_file = std::make_shared<cnpy::MMapFile>(fileno(fp), "rw");
+    unsigned char* buffer = reinterpret_cast<unsigned char*>(const_cast<char*>(mmap_file->data()));
+    size_t word_size;
+    std::vector<size_t> shape;
+    bool fortran_order;
+    cnpy::parse_npy_header(buffer + data_pos, word_size, shape, fortran_order);
+    uint16_t header_len = *reinterpret_cast<uint16_t*>(buffer + data_pos + 8);
+    size_t data_offset = data_pos + 10 + header_len;
+    return cnpy::NpyArray(shape, word_size, fortran_order, mmap_file, data_offset);
+}
 
-cnpy::npz_t cnpy::npz_load(std::string fname) {
-    FILE* fp = fopen(fname.c_str(), "rb");
+// mmap-enabled overload for npz_save (pointer version) removed (duplicate)
+cnpy::npz_t cnpy::npz_load(std::string fname, bool use_mmap) {
+    FILE* fp = fopen(fname.c_str(), use_mmap ? "rb+" : "rb");
 
     if (!fp) {
         throw std::runtime_error("npz_load: Error! Unable to open file " + fname + "!");
@@ -268,8 +281,18 @@ cnpy::npz_t cnpy::npz_load(std::string fname) {
         uint32_t uncompr_bytes = *reinterpret_cast<uint32_t*>(&local_header[0] + 22);
 
         if (compr_method == 0) {
-            arrays[varname] = load_the_npy_file(fp);
+            if (use_mmap) {
+                arrays[varname] = load_the_npy_mmap(fp);
+                // skip mmap data to advance file pointer past this entry
+                fseek(fp, uncompr_bytes, SEEK_CUR);
+            } else {
+                arrays[varname] = load_the_npy_file(fp);
+            }
         } else {
+            if (use_mmap) {
+                std::cerr << "Warning: npz_load: memory map requested but file '" << fname
+                          << "' entry '" << varname << "' is compressed; falling back to memory load" << std::endl;
+            }
             arrays[varname] = load_the_npz_array(fp, compr_bytes, uncompr_bytes);
         }
     }
@@ -279,7 +302,7 @@ cnpy::npz_t cnpy::npz_load(std::string fname) {
 }
 
 cnpy::NpyArray cnpy::npz_load(std::string fname, std::string varname, bool use_mmap) {
-    FILE* fp = fopen(fname.c_str(), "rb");
+    FILE* fp = fopen(fname.c_str(), use_mmap ? "rb+" : "rb");
 
     if (!fp) throw std::runtime_error("npz_load: Unable to open file " + fname);
 
@@ -309,21 +332,13 @@ cnpy::NpyArray cnpy::npz_load(std::string fname, std::string varname, bool use_m
         if (vname == varname) {
             NpyArray array;
             if (use_mmap && compr_method == 0) {
-                long data_pos = ftell(fp);
-                auto mmap_file = std::make_shared<MMapFile>(fname, "rw");
-                unsigned char* buffer = reinterpret_cast<unsigned char*>(const_cast<char*>(mmap_file->data()));
-                size_t word_size;
-                std::vector<size_t> shape;
-                bool fortran_order;
-                cnpy::parse_npy_header(buffer + data_pos, word_size, shape, fortran_order);
-                uint16_t header_len = *reinterpret_cast<uint16_t*>(buffer + data_pos + 8);
-                size_t data_offset = data_pos + 10 + header_len;
-                array = NpyArray(shape, word_size, fortran_order, mmap_file, data_offset);
+                array = load_the_npy_mmap(fp);
             } else if (compr_method == 0) {
                 array = load_the_npy_file(fp);
             } else {
                 if (use_mmap) {
-                    std::cerr << "Warning: npz_load: memory map requested but file '" << fname << "' is compressed; falling back to memory load" << std::endl;
+                    std::cerr << "Warning: npz_load: memory map requested but file '" << fname
+                              << "' entry '" << varname << "' is compressed; falling back to memory load" << std::endl;
                 }
                 array = load_the_npz_array(fp, compr_bytes, uncompr_bytes);
             }

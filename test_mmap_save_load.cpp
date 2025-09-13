@@ -105,3 +105,37 @@ TEST_CASE("npz_load from NumPy compressed .npz memory load and error on mmap", "
 
     std::remove(filename.c_str());
 }
+// Test default npz_load overload in mmap mode for uncompressed .npz
+TEST_CASE("npz_load default overload mmap loads uncompressed .npz correctly", "[cnpy][npz][mmap]") {
+    const std::string filename = "test_npz_default_uncompressed.npz";
+    std::vector<int> data1 = {1, 2, 3};
+    std::vector<size_t> shape1 = {data1.size()};
+    cnpy::npz_save<int>(filename, "arr1", data1.data(), shape1, "w");
+    std::vector<int> data2 = {4, 5, 6, 7};
+    std::vector<size_t> shape2 = {data2.size()};
+    cnpy::npz_save<int>(filename, "arr2", data2.data(), shape2, "a");
+    cnpy::npz_t arrays = cnpy::npz_load(filename, true);
+    REQUIRE(arrays.size() == 2);
+    REQUIRE(arrays.count("arr1") == 1);
+    REQUIRE(arrays.count("arr2") == 1);
+    REQUIRE(arrays.at("arr1").as_vec<int>() == data1);
+    REQUIRE(arrays.at("arr2").as_vec<int>() == data2);
+    std::remove(filename.c_str());
+}
+
+// Test default npz_load overload in mmap mode fallback on compressed .npz
+TEST_CASE("npz_load default overload mmap fallback on compressed .npz", "[cnpy][npz][mmap][compressed]") {
+    const std::string filename = "test_npz_default_compressed.npz";
+    std::vector<size_t> shape = {3};
+    std::vector<int> data = {7, 8, 9};
+    cnpy::npz_save<int>(filename, "arr", data.data(), shape, "w", true);
+    std::ostringstream err;
+    auto old_buf = std::cerr.rdbuf(err.rdbuf());
+    cnpy::npz_t arrays = cnpy::npz_load(filename, true);
+    std::cerr.rdbuf(old_buf);
+    REQUIRE(arrays.size() == 1);
+    REQUIRE(arrays.count("arr") == 1);
+    REQUIRE(arrays.at("arr").as_vec<int>() == data);
+    REQUIRE(err.str().find("Warning: npz_load: memory map requested but file") != std::string::npos);
+    std::remove(filename.c_str());
+}
