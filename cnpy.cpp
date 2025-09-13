@@ -278,7 +278,7 @@ cnpy::npz_t cnpy::npz_load(std::string fname) {
     return arrays;
 }
 
-cnpy::NpyArray cnpy::npz_load(std::string fname, std::string varname) {
+cnpy::NpyArray cnpy::npz_load(std::string fname, std::string varname, bool use_mmap) {
     FILE* fp = fopen(fname.c_str(), "rb");
 
     if (!fp) throw std::runtime_error("npz_load: Unable to open file " + fname);
@@ -307,8 +307,26 @@ cnpy::NpyArray cnpy::npz_load(std::string fname, std::string varname) {
         uint32_t uncompr_bytes = *reinterpret_cast<uint32_t*>(&local_header[0] + 22);
 
         if (vname == varname) {
-            NpyArray array =
-                (compr_method == 0) ? load_the_npy_file(fp) : load_the_npz_array(fp, compr_bytes, uncompr_bytes);
+            NpyArray array;
+            if (use_mmap && compr_method == 0) {
+                long data_pos = ftell(fp);
+                auto mmap_file = std::make_shared<MMapFile>(fname, "rw");
+                unsigned char* buffer = reinterpret_cast<unsigned char*>(const_cast<char*>(mmap_file->data()));
+                size_t word_size;
+                std::vector<size_t> shape;
+                bool fortran_order;
+                cnpy::parse_npy_header(buffer + data_pos, word_size, shape, fortran_order);
+                uint16_t header_len = *reinterpret_cast<uint16_t*>(buffer + data_pos + 8);
+                size_t data_offset = data_pos + 10 + header_len;
+                array = NpyArray(shape, word_size, fortran_order, mmap_file, data_offset);
+            } else if (compr_method == 0) {
+                array = load_the_npy_file(fp);
+            } else {
+                if (use_mmap) {
+                    std::cerr << "Warning: npz_load: memory map requested but file '" << fname << "' is compressed; falling back to memory load" << std::endl;
+                }
+                array = load_the_npz_array(fp, compr_bytes, uncompr_bytes);
+            }
             fclose(fp);
             return array;
         } else {

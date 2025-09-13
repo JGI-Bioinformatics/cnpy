@@ -92,7 +92,7 @@ namespace cnpy {
     void parse_npy_header(unsigned char* buffer, size_t& word_size, std::vector<size_t>& shape, bool& fortran_order);
     void parse_zip_footer(FILE* fp, uint16_t& nrecs, size_t& global_header_size, size_t& global_header_offset);
     npz_t npz_load(std::string fname);
-    NpyArray npz_load(std::string fname, std::string varname);
+    NpyArray npz_load(std::string fname, std::string varname, bool use_mmap = false);
     // load a .npy file. if use_mmap is true, memory-map the file instead of reading it into memory (allows read-write)
     NpyArray npy_load(std::string fname, bool use_mmap = false);
 
@@ -104,16 +104,13 @@ namespace cnpy {
         auto _word_size = sizeof(T);
         auto header = cnpy::create_npy_header<T>(_shape);
         size_t nbytes = nvals * _word_size + header.size();
-        FILE* fp = fopen(filename.c_str(), "wb");
-        if (!fp) throw std::runtime_error("NpyArray::new_mmap: Unable to open file " + filename);
-        int res = ftruncate(fileno(fp), nbytes);
-        if (res != 0) {
-            fclose(fp);
+        int fd = ::open(filename.c_str(), O_RDWR | O_CREAT, 0666);
+        if (fd == -1) throw std::runtime_error("NpyArray::new_mmap: Unable to open file " + filename);
+        if (ftruncate(fd, nbytes) != 0) {
+            ::close(fd);
             throw std::runtime_error("NpyArray::new_mmap: Unable to truncate file " + filename);
         }
-        fclose(fp);
-        // memory-map the file
-        auto mmap_file = std::make_shared<MMapFile>(filename, "r+");
+        auto mmap_file = std::make_shared<MMapFile>(fd, "rw");
         // write the header
         memcpy(const_cast<char*>(mmap_file->data()), &header[0], header.size());
         return NpyArray(_shape, _word_size, _fortran_order, mmap_file, header.size());
@@ -179,7 +176,7 @@ namespace cnpy {
 
     template <typename T>
     void npz_save(std::string zipname, std::string fname, const T* data, const std::vector<size_t>& shape,
-                  std::string mode = "w") {
+                  std::string mode = "w", bool compress = false) {
         // first, append a .npy to the fname
         fname += ".npy";
 
@@ -219,18 +216,46 @@ namespace cnpy {
         uint32_t crc = crc32(0L, (uint8_t*)&npy_header[0], npy_header.size());
         crc = crc32(crc, (uint8_t*)data, nels * sizeof(T));
 
+        // prepare compression if requested
+        std::vector<unsigned char> compr_buf;
+        uint16_t compr_method = 0;
+        uint32_t compr_bytes_val = nbytes;
+        if (compress) {
+            // build raw buffer of header + data for deflation
+            compr_buf.reserve(nbytes);
+            compr_buf.insert(compr_buf.end(), npy_header.begin(), npy_header.end());
+            const unsigned char* raw_data = reinterpret_cast<const unsigned char*>(data);
+            compr_buf.insert(compr_buf.end(), raw_data, raw_data + nels * sizeof(T));
+
+            // deflate (raw, no wrapper) for zip entry
+            z_stream c_stream;
+            c_stream.zalloc = Z_NULL; c_stream.zfree = Z_NULL; c_stream.opaque = Z_NULL;
+            c_stream.next_in = compr_buf.data(); c_stream.avail_in = compr_buf.size();
+            int err = deflateInit2(&c_stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, -MAX_WBITS, 8, Z_DEFAULT_STRATEGY);
+            if (err != Z_OK) throw std::runtime_error("npz_save: deflateInit2 failed");
+            std::vector<unsigned char> tmp(deflateBound(&c_stream, compr_buf.size()));
+            c_stream.next_out = tmp.data(); c_stream.avail_out = tmp.size();
+            err = deflate(&c_stream, Z_FINISH);
+            if (err != Z_STREAM_END) { deflateEnd(&c_stream); throw std::runtime_error("npz_save: deflate failed"); }
+            compr_bytes_val = c_stream.total_out;
+            err = deflateEnd(&c_stream);
+            if (err != Z_OK) throw std::runtime_error("npz_save: deflateEnd failed");
+            compr_buf.assign(tmp.data(), tmp.data() + compr_bytes_val);
+            compr_method = 8; // deflate compression
+        }
+
         // build the local header
         std::vector<char> local_header;
         local_header += "PK";                   // first part of sig
         local_header += (uint16_t)0x0403;       // second part of sig
         local_header += (uint16_t)20;           // min version to extract
         local_header += (uint16_t)0;            // general purpose bit flag
-        local_header += (uint16_t)0;            // compression method
+        local_header += compr_method;            // compression method
         local_header += (uint16_t)0;            // file last mod time
         local_header += (uint16_t)0;            // file last mod date
         local_header += (uint32_t)crc;          // crc
-        local_header += (uint32_t)nbytes;       // compressed size
-        local_header += (uint32_t)nbytes;       // uncompressed size
+        local_header += (uint32_t)compr_bytes_val;       // compressed size
+        local_header += (uint32_t)nbytes;                // uncompressed size
         local_header += (uint16_t)fname.size(); // fname length
         local_header += (uint16_t)0;            // extra field length
         local_header += fname;
@@ -264,8 +289,12 @@ namespace cnpy {
 
         // write everything
         fwrite(&local_header[0], sizeof(char), local_header.size(), fp);
-        fwrite(&npy_header[0], sizeof(char), npy_header.size(), fp);
-        fwrite(data, sizeof(T), nels, fp);
+        if (compress) {
+            fwrite(compr_buf.data(), 1, compr_bytes_val, fp);
+        } else {
+            fwrite(&npy_header[0], sizeof(char), npy_header.size(), fp);
+            fwrite(data, sizeof(T), nels, fp);
+        }
         fwrite(&global_header[0], sizeof(char), global_header.size(), fp);
         fwrite(&footer[0], sizeof(char), footer.size(), fp);
         fclose(fp);
@@ -278,10 +307,10 @@ namespace cnpy {
     }
 
     template <typename T>
-    void npz_save(std::string zipname, std::string fname, const std::vector<T> data, std::string mode = "w") {
+    void npz_save(std::string zipname, std::string fname, const std::vector<T> data, std::string mode = "w", bool compress = false) {
         std::vector<size_t> shape;
         shape.push_back(data.size());
-        npz_save(zipname, fname, &data[0], shape, mode);
+        npz_save(zipname, fname, &data[0], shape, mode, compress);
     }
 
     template <typename T> std::vector<char> create_npy_header(const std::vector<size_t>& shape) {

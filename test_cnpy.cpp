@@ -878,3 +878,26 @@ TEST_CASE("new_mmap double 3D", "[cnpy]") {
     // Clean up the temporary file
     std::remove(filename.c_str());
 }
+// Test for npz_save with compression option
+TEST_CASE("npz_save with compression option compresses data correctly", "[cnpy]") {
+    std::vector<int> data = {10, 20, 30, 40, 50, 60};
+    std::vector<size_t> shape = {2,3};
+    std::string filename = "test_npz_compress.npz";
+
+    // Save with compression enabled
+    cnpy::npz_save<int>(filename, "arr_compressed", data.data(), shape, "w", true);
+
+    // Load and verify
+    cnpy::npz_t arrays = cnpy::npz_load(filename);
+    REQUIRE(arrays.size() == 1);
+    const cnpy::NpyArray &arr = arrays.at("arr_compressed");
+    REQUIRE(arr.shape == shape);
+    REQUIRE(arr.word_size == sizeof(int));
+    const int* loaded = arr.data<int>();
+    for (size_t i = 0; i < data.size(); ++i) {
+        REQUIRE(loaded[i] == data[i]);
+    }
+
+    // Clean up
+    std::remove(filename.c_str());
+}
