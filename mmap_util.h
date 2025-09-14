@@ -19,7 +19,12 @@ namespace cnpy {
         // Open file and map it into memory. mode = "r" for read-only, "rw" for
         // read-write.
         MMapFile(const std::string& path, const std::string& mode = "r") : fd_(-1), data_(nullptr), size_(0) {
-            readonly_ = (mode == "r");
+            if (mode == "r")
+                readonly_ = true;
+            else if (mode == "rw")
+                readonly_ = false;
+            else
+                readonly_ = true; // default to read-only on invalid mode
             int flags = readonly_ ? O_RDONLY : O_RDWR;
             fd_ = ::open(path.c_str(), flags);
             if (fd_ == -1) {

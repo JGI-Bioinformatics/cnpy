@@ -4,7 +4,7 @@ if(COMMAND cmake_policy)
 endif(COMMAND cmake_policy)
 
 project(CNPY)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 11)
 
 option(ENABLE_STATIC "Build static (.a) library" ON)
 

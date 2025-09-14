@@ -1,13 +1,13 @@
 // Generic regression test for cnpy API
 #include "cnpy.h"
-#include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
-#include <typeinfo>
-#include <vector>
-#include <string>
+#include <catch2/catch_test_macros.hpp>
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
+#include <string>
+#include <typeinfo>
+#include <vector>
 
 TEST_CASE("Generic regression test for cnpy API", "[cnpy][regression]") {
     // Prepare temporary file names
@@ -22,7 +22,10 @@ TEST_CASE("Generic regression test for cnpy API", "[cnpy][regression]") {
         std::remove(mmap_file.c_str());
     };
     // In case of early exit, use RAII
-    struct Cleanup { std::function<void()> f; ~Cleanup(){ f(); } };
+    struct Cleanup {
+        std::function<void()> f;
+        ~Cleanup() { f(); }
+    };
     Cleanup guard{cleanup};
 
     // Individual API calls with INFO and REQUIRE_NOTHROW
@@ -54,7 +57,9 @@ TEST_CASE("Generic regression test for cnpy API", "[cnpy][regression]") {
     {
         FILE* fp = fopen(npy_file.c_str(), "rb");
         REQUIRE(fp != nullptr);
-        size_t ws; std::vector<size_t> sh; bool fo;
+        size_t ws;
+        std::vector<size_t> sh;
+        bool fo;
         REQUIRE_NOTHROW(cnpy::parse_npy_header(fp, ws, sh, fo));
         fclose(fp);
     }
@@ -66,7 +71,9 @@ TEST_CASE("Generic regression test for cnpy API", "[cnpy][regression]") {
         unsigned char buf[256];
         size_t read = fread(buf, 1, sizeof(buf), fp);
         (void)read;
-        size_t ws; std::vector<size_t> sh; bool fo;
+        size_t ws;
+        std::vector<size_t> sh;
+        bool fo;
         REQUIRE_NOTHROW(cnpy::parse_npy_header(buf, ws, sh, fo));
         fclose(fp);
     }
@@ -75,7 +82,8 @@ TEST_CASE("Generic regression test for cnpy API", "[cnpy][regression]") {
     {
         FILE* fp = fopen(npz_file.c_str(), "rb");
         REQUIRE(fp != nullptr);
-        uint16_t nrecs; size_t ghs, goff;
+        uint16_t nrecs;
+        size_t ghs, goff;
         REQUIRE_NOTHROW(cnpy::parse_zip_footer(fp, nrecs, ghs, goff));
         fclose(fp);
     }

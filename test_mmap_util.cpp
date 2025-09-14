@@ -97,3 +97,24 @@ TEST_CASE("MMapFile mapping from file descriptor", "[mmap]") {
     ::close(fd);
     std::remove(filename.c_str());
 }
+
+TEST_CASE("MMapFile invalid file handling", "[mmap]") {
+    // Non-existent file should throw
+    REQUIRE_THROWS_AS(cnpy::MMapFile("non_existent_file.bin", "r"), std::runtime_error);
+
+    // Invalid mode should default to read-only
+    const std::string filename = "test_invalid_mode.bin";
+    {
+        std::ofstream ofs(filename, std::ios::binary);
+        std::string data = "InvalidMode";
+        ofs.write(data.c_str(), data.size());
+    }
+    cnpy::MMapFile mmapFile(filename, "invalid_mode");
+    REQUIRE(mmapFile.is_open());
+    REQUIRE(mmapFile.is_readonly());
+    REQUIRE(mmapFile.size() == 11);
+    REQUIRE(std::memcmp(mmapFile.data(), "InvalidMode", 11) == 0);
+
+    // Clean up
+    std::remove(filename.c_str());
+}

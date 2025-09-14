@@ -43,8 +43,8 @@ TEST_CASE("map_type returns correct type codes", "[cnpy]") {
     struct Dummy {};
     REQUIRE(cnpy::map_type(typeid(Dummy)) == '?');
 }
-// Additional unit tests for cnpy::NpyArray
 
+// Additional unit tests for cnpy::NpyArray
 TEST_CASE("NpyArray default constructor", "[cnpy]") {
     cnpy::NpyArray arr;
     REQUIRE(arr.shape.empty());
