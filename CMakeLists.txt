@@ -58,4 +58,7 @@ add_test(NAME mmap_save_load_test COMMAND test_mmap_save_load)
 
 add_executable(test_generic_regression test_generic_regression.cpp)
 target_link_libraries(test_generic_regression PRIVATE cnpy Catch2::Catch2WithMain)
+add_executable(test_new_npz_mmap test_new_npz_mmap.cpp)
+target_link_libraries(test_new_npz_mmap PRIVATE cnpy Catch2::Catch2WithMain)
+add_test(NAME new_npz_mmap_test COMMAND test_new_npz_mmap)
 add_test(NAME generic_regression_test COMMAND test_generic_regression)

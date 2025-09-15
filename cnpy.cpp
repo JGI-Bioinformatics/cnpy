@@ -63,7 +63,7 @@ template <> std::vector<char>& cnpy::operator+=(std::vector<char>& lhs, const ch
     return lhs;
 }
 
-void cnpy::parse_npy_header(unsigned char* buffer, size_t& word_size, std::vector<size_t>& shape, bool& fortran_order) {
+void cnpy::parse_npy_header(unsigned char* buffer, size_t& word_size, Shape& shape, bool& fortran_order) {
     std::string magic_string((const char*)buffer, 6);
     uint8_t major_version = *reinterpret_cast<uint8_t*>(buffer + 6);
     uint8_t minor_version = *reinterpret_cast<uint8_t*>(buffer + 7);
@@ -105,7 +105,7 @@ void cnpy::parse_npy_header(unsigned char* buffer, size_t& word_size, std::vecto
     word_size = atoi(str_ws.substr(0, loc2).c_str());
 }
 
-void cnpy::parse_npy_header(FILE* fp, size_t& word_size, std::vector<size_t>& shape, bool& fortran_order) {
+void cnpy::parse_npy_header(FILE* fp, size_t& word_size, Shape& shape, bool& fortran_order) {
     char buffer[256];
     size_t res = fread(buffer, sizeof(char), 11, fp);
     if (res != 11) throw std::runtime_error("parse_npy_header: failed fread");
@@ -176,7 +176,7 @@ void cnpy::parse_zip_footer(FILE* fp, uint16_t& nrecs, size_t& global_header_siz
 }
 
 cnpy::NpyArray load_the_npy_file(FILE* fp) {
-    std::vector<size_t> shape;
+    cnpy::Shape shape;
     size_t word_size;
     bool fortran_order;
     cnpy::parse_npy_header(fp, word_size, shape, fortran_order);
@@ -215,7 +215,7 @@ cnpy::NpyArray load_the_npz_array(FILE* fp, uint32_t compr_bytes, uint32_t uncom
     err = inflateEnd(&d_stream);
     if (err != Z_OK) throw std::runtime_error("load_the_npz_array: inflateEnd failed");
 
-    std::vector<size_t> shape;
+    cnpy::Shape shape;
     size_t word_size;
     bool fortran_order;
     cnpy::parse_npy_header(&buffer_uncompr[0], word_size, shape, fortran_order);
@@ -233,7 +233,7 @@ cnpy::NpyArray load_the_npy_mmap(FILE* fp) {
     auto mmap_file = std::make_shared<cnpy::MMapFile>(fileno(fp), "rw");
     unsigned char* buffer = reinterpret_cast<unsigned char*>(const_cast<char*>(mmap_file->data()));
     size_t word_size;
-    std::vector<size_t> shape;
+    cnpy::Shape shape;
     bool fortran_order;
     cnpy::parse_npy_header(buffer + data_pos, word_size, shape, fortran_order);
     uint16_t header_len = *reinterpret_cast<uint16_t*>(buffer + data_pos + 8);
@@ -376,7 +376,7 @@ cnpy::NpyArray cnpy::npy_load(std::string fname, bool use_mmap) {
         unsigned char* buffer = reinterpret_cast<unsigned char*>(const_cast<char*>(mmap_file->data()));
         // Parse the header from the mapped memory
         size_t word_size;
-        std::vector<size_t> shape;
+        Shape shape;
         bool fortran_order;
         cnpy::parse_npy_header(buffer, word_size, shape, fortran_order);
         // Header length is stored at offset 8 (little-endian uint16)
@@ -390,4 +390,66 @@ cnpy::NpyArray cnpy::npy_load(std::string fname, bool use_mmap) {
         return npy_load(fname, false);
 #endif
     }
+}
+
+// Implementation of new_npz_mmap
+cnpy::npz_t cnpy::new_npz_mmap(std::string filename, const std::vector<ShapeAndType>& _shapes, bool _fortran_order) {
+    if (_shapes.empty()) return npz_t();
+    bool first = true;
+    for (const auto& st : _shapes) {
+        const auto& shape = st.shape;
+        size_t nvals = 1;
+        for (size_t dim : shape) nvals *= dim;
+        std::string mode = first ? "w" : "a";
+        first = false;
+        const std::type_info& tinfo = st.type_info;
+        if (tinfo == typeid(int)) {
+            std::vector<int> data(nvals);
+            npz_save<int>(filename, st.name, data.data(), shape, mode, false);
+        } else if (tinfo == typeid(float)) {
+            std::vector<float> data(nvals);
+            npz_save<float>(filename, st.name, data.data(), shape, mode, false);
+        } else if (tinfo == typeid(double)) {
+            std::vector<double> data(nvals);
+            npz_save<double>(filename, st.name, data.data(), shape, mode, false);
+        } else if (tinfo == typeid(long double)) {
+            std::vector<long double> data(nvals);
+            npz_save<long double>(filename, st.name, data.data(), shape, mode, false);
+        } else if (tinfo == typeid(char)) {
+            std::vector<char> data(nvals);
+            npz_save<char>(filename, st.name, data.data(), shape, mode, false);
+        } else if (tinfo == typeid(short)) {
+            std::vector<short> data(nvals);
+            npz_save<short>(filename, st.name, data.data(), shape, mode, false);
+        } else if (tinfo == typeid(long)) {
+            std::vector<long> data(nvals);
+            npz_save<long>(filename, st.name, data.data(), shape, mode, false);
+        } else if (tinfo == typeid(long long)) {
+            std::vector<long long> data(nvals);
+            npz_save<long long>(filename, st.name, data.data(), shape, mode, false);
+        } else if (tinfo == typeid(unsigned char)) {
+            std::vector<unsigned char> data(nvals);
+            npz_save<unsigned char>(filename, st.name, data.data(), shape, mode, false);
+        } else if (tinfo == typeid(unsigned short)) {
+            std::vector<unsigned short> data(nvals);
+            npz_save<unsigned short>(filename, st.name, data.data(), shape, mode, false);
+        } else if (tinfo == typeid(unsigned int)) {
+            std::vector<unsigned int> data(nvals);
+            npz_save<unsigned int>(filename, st.name, data.data(), shape, mode, false);
+        } else if (tinfo == typeid(unsigned long)) {
+            std::vector<unsigned long> data(nvals);
+            npz_save<unsigned long>(filename, st.name, data.data(), shape, mode, false);
+        } else if (tinfo == typeid(unsigned long long)) {
+            std::vector<unsigned long long> data(nvals);
+            npz_save<unsigned long long>(filename, st.name, data.data(), shape, mode, false);
+        } else {
+            throw std::runtime_error("new_npz_mmap: unsupported type for variable " + st.name);
+        }
+    }
+    // Return memory-mapped arrays
+    auto arrays = npz_load(filename, true);
+    for (auto& kv : arrays) {
+        kv.second.fortran_order = _fortran_order;
+    }
+    return arrays;
 }

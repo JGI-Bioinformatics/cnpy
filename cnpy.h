@@ -24,9 +24,19 @@
 
 namespace cnpy {
 
+    using Shape = std::vector<size_t>;
+    struct ShapeAndType {
+        Shape shape;
+        const std::type_info& type_info;
+        std::string name;
+        ShapeAndType(const Shape& shape_, const std::type_info& type_info_, const std::string& name_)
+            : shape(shape_), type_info(type_info_), name(name_) {}
+    };
+
+    // Represents a loaded NPY array, either in memory or memory-mapped
     struct NpyArray {
         // Constructor for regular in‑memory array
-        NpyArray(const std::vector<size_t>& _shape, size_t _word_size, bool _fortran_order)
+        NpyArray(const Shape& _shape, size_t _word_size, bool _fortran_order)
             : data_holder(nullptr), mmap_file(nullptr), data_offset(0), shape(_shape), word_size(_word_size),
               fortran_order(_fortran_order), num_vals(0) {
             num_vals = 1;
@@ -35,7 +45,7 @@ namespace cnpy {
         }
 
         // Constructor for mmap‑backed array
-        NpyArray(const std::vector<size_t>& _shape, size_t _word_size, bool _fortran_order,
+        NpyArray(const Shape& _shape, size_t _word_size, bool _fortran_order,
                  std::shared_ptr<MMapFile> _mmap_file, size_t _data_offset)
             : data_holder(nullptr), mmap_file(std::move(_mmap_file)), data_offset(_data_offset), shape(_shape),
               word_size(_word_size), fortran_order(_fortran_order), num_vals(0) {
@@ -77,7 +87,7 @@ namespace cnpy {
         std::shared_ptr<std::vector<char>> data_holder;
         std::shared_ptr<MMapFile> mmap_file;
         size_t data_offset;
-        std::vector<size_t> shape;
+        Shape shape;
         size_t word_size;
         bool fortran_order;
         size_t num_vals;
@@ -87,9 +97,9 @@ namespace cnpy {
 
     char BigEndianTest();
     char map_type(const std::type_info& t);
-    template <typename T> std::vector<char> create_npy_header(const std::vector<size_t>& shape);
-    void parse_npy_header(FILE* fp, size_t& word_size, std::vector<size_t>& shape, bool& fortran_order);
-    void parse_npy_header(unsigned char* buffer, size_t& word_size, std::vector<size_t>& shape, bool& fortran_order);
+    template <typename T> std::vector<char> create_npy_header(const Shape& shape);
+    void parse_npy_header(FILE* fp, size_t& word_size, Shape& shape, bool& fortran_order);
+    void parse_npy_header(unsigned char* buffer, size_t& word_size, Shape& shape, bool& fortran_order);
     void parse_zip_footer(FILE* fp, uint16_t& nrecs, size_t& global_header_size, size_t& global_header_offset);
     npz_t npz_load(std::string fname, bool use_mmap = false);
     NpyArray npz_load(std::string fname, std::string varname, bool use_mmap = false);
@@ -100,7 +110,7 @@ namespace cnpy {
     NpyArray npy_load(std::string fname, bool use_mmap = false);
 
     template <typename T>
-    static NpyArray new_mmap(std::string filename, const std::vector<size_t>& _shape, bool _fortran_order) {
+    static NpyArray new_npy_mmap(std::string filename, const Shape& _shape, bool _fortran_order) {
         // create a new file and truncate it to the correct size
         size_t nvals = 1;
         for (size_t i = 0; i < _shape.size(); ++i) nvals *= _shape[i];
@@ -108,16 +118,19 @@ namespace cnpy {
         auto header = cnpy::create_npy_header<T>(_shape);
         size_t nbytes = nvals * _word_size + header.size();
         int fd = ::open(filename.c_str(), O_RDWR | O_CREAT, 0666);
-        if (fd == -1) throw std::runtime_error("NpyArray::new_mmap: Unable to open file " + filename);
+        if (fd == -1) throw std::runtime_error("NpyArray::new_npy_mmap: Unable to open file " + filename);
         if (ftruncate(fd, nbytes) != 0) {
             ::close(fd);
-            throw std::runtime_error("NpyArray::new_mmap: Unable to truncate file " + filename);
+            throw std::runtime_error("NpyArray::new_npy_mmap: Unable to truncate file " + filename);
         }
         auto mmap_file = std::make_shared<MMapFile>(fd, "rw");
         // write the header
         memcpy(const_cast<char*>(mmap_file->data()), &header[0], header.size());
         return NpyArray(_shape, _word_size, _fortran_order, mmap_file, header.size());
     };
+
+    // creates a new .npz file with memory-mapped arrays with the specified shapes and types
+    npz_t new_npz_mmap(std::string filename, const std::vector<ShapeAndType>& _shapes, bool _fortran_order);
 
     template <typename T> std::vector<char>& operator+=(std::vector<char>& lhs, const T rhs) {
         // write in little endian
@@ -132,9 +145,9 @@ namespace cnpy {
     template <> std::vector<char>& operator+=(std::vector<char>& lhs, const char* rhs);
 
     template <typename T>
-    void npy_save(std::string fname, const T* data, const std::vector<size_t> shape, std::string mode = "w") {
+    void npy_save(std::string fname, const T* data, const Shape &shape, std::string mode = "w") {
         FILE* fp = NULL;
-        std::vector<size_t> true_data_shape; // if appending, the shape of existing + new data
+        Shape true_data_shape; // if appending, the shape of existing + new data
 
         if (mode == "a") fp = fopen(fname.c_str(), "r+b");
 
@@ -178,7 +191,7 @@ namespace cnpy {
     };
 
     template <typename T>
-    void npz_save(std::string zipname, std::string fname, const T* data, const std::vector<size_t>& shape,
+    void npz_save(std::string zipname, std::string fname, const T* data, const Shape& shape,
                   std::string mode = "w", bool compress = false) {
         // first, append a .npy to the fname
         fname += ".npy";
@@ -312,7 +325,7 @@ namespace cnpy {
     };
 
     template <typename T> void npy_save(std::string fname, const std::vector<T> data, std::string mode = "w") {
-        std::vector<size_t> shape;
+        Shape shape;
         shape.push_back(data.size());
         npy_save(fname, &data[0], shape, mode);
     }
@@ -320,12 +333,12 @@ namespace cnpy {
     template <typename T>
     void npz_save(std::string zipname, std::string fname, const std::vector<T> data, std::string mode = "w",
                   bool compress = false) {
-        std::vector<size_t> shape;
+        Shape shape;
         shape.push_back(data.size());
         npz_save(zipname, fname, &data[0], shape, mode, compress);
     }
 
-    template <typename T> std::vector<char> create_npy_header(const std::vector<size_t>& shape) {
+    template <typename T> std::vector<char> create_npy_header(const Shape& shape) {
 
         std::vector<char> dict;
         dict += "{'descr': '";

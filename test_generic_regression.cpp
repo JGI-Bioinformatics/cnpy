@@ -88,8 +88,8 @@ TEST_CASE("Generic regression test for cnpy API", "[cnpy][regression]") {
         fclose(fp);
     }
 
-    INFO("new_mmap_int");
-    REQUIRE_NOTHROW(cnpy::new_mmap<int>(mmap_file, {1}, false));
+    INFO("new_npy_mmap_int");
+    REQUIRE_NOTHROW(cnpy::new_npy_mmap<int>(mmap_file, {1}, false));
 
     // Test operator+= overloads
     using cnpy::operator+=;

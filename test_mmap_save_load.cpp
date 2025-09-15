@@ -141,11 +141,11 @@ TEST_CASE("npz_load default overload mmap fallback on compressed .npz", "[cnpy][
     std::remove(filename.c_str());
 }
 
-// Additional tests for cnpy::new_mmap with different data types and shapes
-TEST_CASE("new_mmap int 2D", "[cnpy]") {
+// Additional tests for cnpy::new_npy_mmap with different data types and shapes
+TEST_CASE("new_npy_mmap int 2D", "[cnpy]") {
     std::vector<size_t> shape = {3, 4};
     std::string filename = "test_npy_mmap_int_2d.npy";
-    cnpy::NpyArray arr = cnpy::new_mmap<int>(filename, shape, false);
+    cnpy::NpyArray arr = cnpy::new_npy_mmap<int>(filename, shape, false);
     // Verify shape and properties
     REQUIRE(arr.shape == shape);
     REQUIRE(arr.word_size == sizeof(int));
@@ -171,10 +171,10 @@ TEST_CASE("new_mmap int 2D", "[cnpy]") {
     std::remove(filename.c_str());
 }
 
-TEST_CASE("new_mmap unsigned short 1D", "[cnpy]") {
+TEST_CASE("new_npy_mmap unsigned short 1D", "[cnpy]") {
     std::vector<size_t> shape = {10};
     std::string filename = "test_npy_mmap_ushort.npy";
-    cnpy::NpyArray arr = cnpy::new_mmap<unsigned short>(filename, shape, false);
+    cnpy::NpyArray arr = cnpy::new_npy_mmap<unsigned short>(filename, shape, false);
     // Verify shape and properties
     REQUIRE(arr.shape == shape);
     REQUIRE(arr.word_size == sizeof(unsigned short));
@@ -200,10 +200,10 @@ TEST_CASE("new_mmap unsigned short 1D", "[cnpy]") {
     std::remove(filename.c_str());
 }
 
-TEST_CASE("new_mmap double 3D", "[cnpy]") {
+TEST_CASE("new_npy_mmap double 3D", "[cnpy]") {
     std::vector<size_t> shape = {2, 3, 4};
     std::string filename = "test_npy_mmap_double_3d.npy";
-    cnpy::NpyArray arr = cnpy::new_mmap<double>(filename, shape, false);
+    cnpy::NpyArray arr = cnpy::new_npy_mmap<double>(filename, shape, false);
     // Verify shape and properties
     REQUIRE(arr.shape == shape);
     REQUIRE(arr.word_size == sizeof(double));

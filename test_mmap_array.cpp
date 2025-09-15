@@ -12,7 +12,7 @@ TEST_CASE("MMap-backed NpyArray lifecycle and persistence", "[cnpy][mmap]") {
 
     // Create a mmap-backed array and write initial data
     {
-        cnpy::NpyArray arr = cnpy::new_mmap<int>(filename, shape, false);
+        cnpy::NpyArray arr = cnpy::new_npy_mmap<int>(filename, shape, false);
         int* data = arr.data<int>();
         size_t total = arr.num_vals;
         for (size_t i = 0; i < total; ++i) {

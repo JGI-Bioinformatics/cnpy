@@ -744,7 +744,7 @@ TEST_CASE("NpyArray mmap constructor", "[cnpy]") {
     std::string filename = "test_npy_mmap.npy";
 
     // Create a new mmap-backed NpyArray using the library helper
-    cnpy::NpyArray arr = cnpy::new_mmap<int>(filename, shape, fortran);
+    cnpy::NpyArray arr = cnpy::new_npy_mmap<int>(filename, shape, fortran);
 
     // Verify shape and properties
     REQUIRE(arr.shape == shape);
@@ -774,11 +774,11 @@ TEST_CASE("NpyArray mmap constructor", "[cnpy]") {
     // Clean up the temporary file
     std::remove(filename.c_str());
 }
-TEST_CASE("new_mmap unsigned short 1D", "[cnpy]") {
+TEST_CASE("new_npy_mmap unsigned short 1D", "[cnpy]") {
     std::vector<size_t> shape = {10};
     std::string filename = "test_npy_mmap_ushort.npy";
 
-    cnpy::NpyArray arr = cnpy::new_mmap<unsigned short>(filename, shape, false);
+    cnpy::NpyArray arr = cnpy::new_npy_mmap<unsigned short>(filename, shape, false);
 
     // Verify shape and properties
     REQUIRE(arr.shape == shape);
@@ -809,11 +809,11 @@ TEST_CASE("new_mmap unsigned short 1D", "[cnpy]") {
     std::remove(filename.c_str());
 }
 
-TEST_CASE("new_mmap int 2D", "[cnpy]") {
+TEST_CASE("new_npy_mmap int 2D", "[cnpy]") {
     std::vector<size_t> shape = {4, 5};
     std::string filename = "test_npy_mmap_int_2d.npy";
 
-    cnpy::NpyArray arr = cnpy::new_mmap<int>(filename, shape, false);
+    cnpy::NpyArray arr = cnpy::new_npy_mmap<int>(filename, shape, false);
 
     // Verify shape and properties
     REQUIRE(arr.shape == shape);
@@ -844,11 +844,11 @@ TEST_CASE("new_mmap int 2D", "[cnpy]") {
     std::remove(filename.c_str());
 }
 
-TEST_CASE("new_mmap double 3D", "[cnpy]") {
+TEST_CASE("new_npy_mmap double 3D", "[cnpy]") {
     std::vector<size_t> shape = {2, 3, 4};
     std::string filename = "test_npy_mmap_double_3d.npy";
 
-    cnpy::NpyArray arr = cnpy::new_mmap<double>(filename, shape, false);
+    cnpy::NpyArray arr = cnpy::new_npy_mmap<double>(filename, shape, false);
 
     // Verify shape and properties
     REQUIRE(arr.shape == shape);
