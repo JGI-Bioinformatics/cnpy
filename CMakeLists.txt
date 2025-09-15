@@ -62,3 +62,12 @@ add_executable(test_new_npz_mmap test_new_npz_mmap.cpp)
 target_link_libraries(test_new_npz_mmap PRIVATE cnpy Catch2::Catch2WithMain)
 add_test(NAME new_npz_mmap_test COMMAND test_new_npz_mmap)
 add_test(NAME generic_regression_test COMMAND test_generic_regression)
+
+# Tests for fortran and non-fortran order
+add_executable(test_npy_fortran_order test_npy_fortran_order.cpp)
+target_link_libraries(test_npy_fortran_order PRIVATE cnpy Catch2::Catch2WithMain)
+add_test(NAME npy_fortran_order_test COMMAND test_npy_fortran_order)
+
+add_executable(test_npy_nonfortran_order test_npy_nonfortran_order.cpp)
+target_link_libraries(test_npy_nonfortran_order PRIVATE cnpy Catch2::Catch2WithMain)
+add_test(NAME npy_nonfortran_order_test COMMAND test_npy_nonfortran_order)
