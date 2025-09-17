@@ -53,3 +53,13 @@ struct NpyArray {
 ```
 
 See [example1.cpp](example1.cpp) for examples of how to use the library. example1 will also be build during cmake installation.
+## Memory-Mapped I/O
+
+cnpy supports memory-mapped operations for large arrays:
+
+- Read-only mapping via [`npy_load`](cnpy.h:109) or [`npz_load`](cnpy.h:104) with `use_mmap = true`. Internally uses [`MMapFile`](mmap_util.h:17).
+- Read-write mapping via [`npy_load`](cnpy.h:109) / [`npz_load`](cnpy.h:104) with `use_mmap = true`.
+- Creating new mmap-backed .npy files with [`new_npy_mmap`](cnpy.h:113).
+- Creating new mmap-backed .npz files with [`new_npz_mmap`](cnpy.h:133).
+
+These methods allow direct modification of the file on disk without loading the entire array into memory.
