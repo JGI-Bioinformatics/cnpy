@@ -101,11 +101,12 @@ namespace cnpy {
     void parse_npy_header(FILE* fp, size_t& word_size, Shape& shape, bool& fortran_order);
     void parse_npy_header(unsigned char* buffer, size_t& word_size, Shape& shape, bool& fortran_order);
     void parse_zip_footer(FILE* fp, uint16_t& nrecs, size_t& global_header_size, size_t& global_header_offset);
+
+    // load a .npy file, if use_mmap is true, memory-map the file instead of reading it into memory (allows read-write)
     npz_t npz_load(std::string fname, bool use_mmap = false);
     NpyArray npz_load(std::string fname, std::string varname, bool use_mmap = false);
-    NpyArray npz_load(std::string fname, const char* varname, bool use_mmap = false) {
-        return npz_load(fname, std::string(varname), use_mmap);
-    } // convenience overload
+    NpyArray npz_load(std::string fname, const char* varname, bool use_mmap = false); // convenience overload
+    
     // load a .npy file. if use_mmap is true, memory-map the file instead of reading it into memory (allows read-write)
     NpyArray npy_load(std::string fname, bool use_mmap = false);
 

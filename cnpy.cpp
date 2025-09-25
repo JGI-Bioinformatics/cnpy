@@ -357,6 +357,10 @@ cnpy::NpyArray cnpy::npz_load(std::string fname, std::string varname, bool use_m
     throw std::runtime_error("npz_load: Variable name " + varname + " not found in " + fname);
 }
 
+cnpy::NpyArray cnpy::npz_load(std::string fname, const char* varname, bool use_mmap) {
+    return npz_load(fname, std::string(varname), use_mmap);
+}
+
 cnpy::NpyArray cnpy::npy_load(std::string fname, bool use_mmap) {
 
     if (!use_mmap) {
